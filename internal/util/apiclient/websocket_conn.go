@@ -10,51 +10,58 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"time"
 
 	"github.com/daytonaio/daytona/cmd/daytona/config"
 	"github.com/gorilla/websocket"
 )
 
 func GetWebsocketConn(ctx context.Context, path string, profile *config.Profile, query *string) (*websocket.Conn, *http.Response, error) {
-	c, err := config.GetConfig()
-	if err != nil {
-		return nil, nil, err
-	}
+    c, err := config.GetConfig()
+    if err != nil {
+        return nil, nil, err
+    }
+    var serverUrl string
+    var apiKey string
+    var activeProfile config.Profile
+    if profile == nil {
+        var err error
+        activeProfile, err = c.GetActiveProfile()
+        if err != nil {
+            return nil, nil, err
+        }
+    } else {
+        activeProfile = *profile
+    }
+    serverUrl = activeProfile.Api.Url
+    apiKey = activeProfile.Api.Key
+    url, err := url.JoinPath(serverUrl, path)
+    if err != nil {
+        return nil, nil, err
+    }
+    wsUrl, err := GetWebSocketUrl(url)
+    if err != nil {
+        return nil, nil, err
+    }
+    if query != nil {
+        wsUrl = fmt.Sprintf("%s?%s", wsUrl, *query)
+    }
+    var conn *websocket.Conn
+    var resp *http.Response
+    retryCount := 0
+    maxRetries := 5
+    for {
+        conn, resp, err = websocket.DefaultDialer.DialContext(ctx, wsUrl, http.Header{
+            "Authorization": []string{fmt.Sprintf("Bearer %s", apiKey)},
+        })
+        if err == nil || retryCount >= maxRetries {
+            break
+        }
+        retryCount++
+        time.Sleep(2 * time.Second)
+    }
 
-	var serverUrl string
-	var apiKey string
-
-	var activeProfile config.Profile
-	if profile == nil {
-		var err error
-		activeProfile, err = c.GetActiveProfile()
-		if err != nil {
-			return nil, nil, err
-		}
-	} else {
-		activeProfile = *profile
-	}
-
-	serverUrl = activeProfile.Api.Url
-	apiKey = activeProfile.Api.Key
-
-	url, err := url.JoinPath(serverUrl, path)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	wsUrl, err := GetWebSocketUrl(url)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if query != nil {
-		wsUrl = fmt.Sprintf("%s?%s", wsUrl, *query)
-	}
-
-	return websocket.DefaultDialer.DialContext(ctx, wsUrl, http.Header{
-		"Authorization": []string{fmt.Sprintf("Bearer %s", apiKey)},
-	})
+    return conn, resp, err
 }
 
 func GetWebSocketUrl(apiUrl string) (string, error) {

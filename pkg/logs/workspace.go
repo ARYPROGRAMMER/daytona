@@ -94,3 +94,50 @@ func (l *loggerFactoryImpl) CreateWorkspaceLogReader(workspaceId string) (io.Rea
 	filePath := filepath.Join(l.wsLogsDir, workspaceId, "log")
 	return os.Open(filePath)
 }
+
+func readJSONLog(ctx context.Context, ws *websocket.Conn, index int, from *time.Time) {
+    logEntriesChan := make(chan logs.LogEntry)
+    readErr := make(chan error)
+    go func() {
+        for {
+            var logEntry logs.LogEntry
+            err := ws.ReadJSON(&logEntry)
+            if logEntry != (logs.LogEntry{}) {
+                logEntriesChan <- logEntry
+            }
+            if err != nil {
+                if websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure) {
+                    log.Error(err)
+                }
+                readErr <- err
+                return
+            }
+        }
+    }()
+
+    for {
+        select {
+        case <-ctx.Done():
+            return
+        case logEntry := <-logEntriesChan:
+            if from != nil {
+                parsedTime, err := time.Parse(time.RFC3339Nano, logEntry.Time)
+                if err != nil {
+                    log.Trace(err)
+                }
+                if parsedTime.After(*from) || parsedTime.Equal(*from) {
+                    logs_view.DisplayLogEntry(logEntry, index)
+                }
+            } else {
+                logs_view.DisplayLogEntry(logEntry, index)
+            }
+        case err := <-readErr:
+            if err != nil {
+                if websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure) {
+                    log.Error(err)
+                }
+                return
+            }
+        }
+    }
+}
