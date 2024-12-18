@@ -1,18 +1,9 @@
 ## daytona start
 
-Start a workspace
+Start the project
 
 ```
-daytona start [WORKSPACE] [flags]
-```
-
-### Options
-
-```
-  -a, --all              Start all workspaces
-  -c, --code             Open the workspace in the IDE after workspace start
-  -p, --project string   Start a single project in the workspace (project name)
-  -y, --yes              Automatically confirm any prompts
+daytona start [flags]
 ```
 
 ### Options inherited from parent commands
@@ -23,5 +14,5 @@ daytona start [WORKSPACE] [flags]
 
 ### SEE ALSO
 
-* [daytona](daytona.md)	 - Daytona is a Dev Environment Manager
+* [daytona](daytona.md)	 - Use the Daytona CLI to manage your workspace
 

@@ -1,16 +1,9 @@
 ## daytona stop
 
-Stop a workspace
+Stop the project
 
 ```
-daytona stop [WORKSPACE] [flags]
-```
-
-### Options
-
-```
-  -a, --all              Stop all workspaces
-  -p, --project string   Stop a single project in the workspace (project name)
+daytona stop [flags]
 ```
 
 ### Options inherited from parent commands
@@ -21,5 +14,5 @@ daytona stop [WORKSPACE] [flags]
 
 ### SEE ALSO
 
-* [daytona](daytona.md)	 - Daytona is a Dev Environment Manager
+* [daytona](daytona.md)	 - Use the Daytona CLI to manage your workspace
 

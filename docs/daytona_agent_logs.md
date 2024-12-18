@@ -1,9 +1,9 @@
-## daytona build logs
+## daytona agent logs
 
-View logs for build
+Output Daytona Agent logs
 
 ```
-daytona build logs [flags]
+daytona agent logs [flags]
 ```
 
 ### Options
@@ -20,5 +20,5 @@ daytona build logs [flags]
 
 ### SEE ALSO
 
-* [daytona build](daytona_build.md)	 - Manage builds
+* [daytona agent](daytona_agent.md)	 - Start the agent process
 

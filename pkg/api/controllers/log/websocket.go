@@ -48,89 +48,89 @@ func writeJSONToWs(ws *websocket.Conn, c chan interface{}, errChan chan error) {
 // readLog reads from the logReader and writes to the websocket.
 // T is the type of the message to be read from the logReader
 func readLog[T any](ginCtx *gin.Context, logReader io.Reader, readFunc func(context.Context, io.Reader, bool, chan T, chan error), wsWriteFunc func(*websocket.Conn, chan T, chan error)) {
-    followQuery := ginCtx.Query("follow")
-    follow := followQuery == "true"
-    ws, err := upgrader.Upgrade(ginCtx.Writer, ginCtx.Request, nil)
-    if err != nil {
-        log.Error(err)
-        return
-    }
-    defer func() {
-        closeErr := websocket.CloseNormalClosure
-        if !errors.Is(err, io.EOF) {
-            closeErr = websocket.CloseInternalServerErr
-        }
-        err := ws.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(closeErr, ""), time.Now().Add(time.Second))
-        if err != nil {
-            log.Trace(err)
-        }
-        ws.Close()
-    }()
-    msgChannel := make(chan T)
-    errChannel := make(chan error)
-    ctx, cancel := context.WithCancel(ginCtx.Request.Context())
-    defer cancel()
-    go readFunc(ctx, logReader, follow, msgChannel, errChannel)
-    go wsWriteFunc(ws, msgChannel, errChannel)
-    readErr := make(chan error)
-    go func() {
-        for {
-            _, _, err := ws.ReadMessage()
-            readErr <- err
-        }
-    }()
-    for {
-        select {
-        case <-ctx.Done():
-            return
-        case err = <-errChannel:
-            if err != nil {
-                if !errors.Is(err, io.EOF) {
-                    log.Error(err)
-                }
-                cancel()
-                return
-            }
-        case err := <-readErr:
-            if websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure, websocket.CloseAbnormalClosure) {
-                log.Error(err)
-            }
-            if err != nil {
-                return
-            }
-        }
-    }
+	followQuery := ginCtx.Query("follow")
+	follow := followQuery == "true"
+	ws, err := upgrader.Upgrade(ginCtx.Writer, ginCtx.Request, nil)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	defer func() {
+		closeErr := websocket.CloseNormalClosure
+		if !errors.Is(err, io.EOF) {
+			closeErr = websocket.CloseInternalServerErr
+		}
+		err := ws.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(closeErr, ""), time.Now().Add(time.Second))
+		if err != nil {
+			log.Trace(err)
+		}
+		ws.Close()
+	}()
+	msgChannel := make(chan T)
+	errChannel := make(chan error)
+	ctx, cancel := context.WithCancel(ginCtx.Request.Context())
+	defer cancel()
+	go readFunc(ctx, logReader, follow, msgChannel, errChannel)
+	go wsWriteFunc(ws, msgChannel, errChannel)
+	readErr := make(chan error)
+	go func() {
+		for {
+			_, _, err := ws.ReadMessage()
+			readErr <- err
+		}
+	}()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case err = <-errChannel:
+			if err != nil {
+				if !errors.Is(err, io.EOF) {
+					log.Error(err)
+				}
+				cancel()
+				return
+			}
+		case err := <-readErr:
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure, websocket.CloseAbnormalClosure) {
+				log.Error(err)
+			}
+			if err != nil {
+				return
+			}
+		}
+	}
 }
 
 func ReadServerLog(ginCtx *gin.Context) {
-    s := server.GetInstance(nil)
-    logFileQuery := ginCtx.Query("file")
-    retryQuery := ginCtx.DefaultQuery("retry", "true")
-    retry := retryQuery == "true"
-    if retry {
-        for {
-            reader, err := s.GetLogReader(logFileQuery)
-            if err != nil && server.IsLogFileNotFound(err) {
-                ginCtx.AbortWithError(http.StatusNotFound, err)
-                return
-            }
-            if err == nil {
-                readLog(ginCtx, reader, util.ReadLog, writeToWs)
-                return
-            }
-            time.Sleep(TIMEOUT)
-        }
-    }
-    reader, err := s.GetLogReader(logFileQuery)
-    if err != nil {
-        if server.IsLogFileNotFound(err) {
-            ginCtx.AbortWithError(http.StatusNotFound, err)
-            return
-        }
-        ginCtx.AbortWithError(http.StatusInternalServerError, err)
-        return
-    }
-    readLog(ginCtx, reader, util.ReadLog, writeToWs)
+	s := server.GetInstance(nil)
+	logFileQuery := ginCtx.Query("file")
+	retryQuery := ginCtx.DefaultQuery("retry", "true")
+	retry := retryQuery == "true"
+	if retry {
+		for {
+			reader, err := s.GetLogReader(logFileQuery)
+			if err != nil && server.IsLogFileNotFound(err) {
+				ginCtx.AbortWithError(http.StatusNotFound, err)
+				return
+			}
+			if err == nil {
+				readLog(ginCtx, reader, util.ReadLog, writeToWs)
+				return
+			}
+			time.Sleep(TIMEOUT)
+		}
+	}
+	reader, err := s.GetLogReader(logFileQuery)
+	if err != nil {
+		if server.IsLogFileNotFound(err) {
+			ginCtx.AbortWithError(http.StatusNotFound, err)
+			return
+		}
+		ginCtx.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	readLog(ginCtx, reader, util.ReadLog, writeToWs)
 }
 
 func ReadWorkspaceLog(ginCtx *gin.Context) {

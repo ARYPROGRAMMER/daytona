@@ -1,15 +1,9 @@
 ## daytona restart
 
-Restart a workspace
+Restart the project
 
 ```
-daytona restart [WORKSPACE] [flags]
-```
-
-### Options
-
-```
-  -p, --project string   Restart a single project in the workspace (project name)
+daytona restart [flags]
 ```
 
 ### Options inherited from parent commands
@@ -20,5 +14,5 @@ daytona restart [WORKSPACE] [flags]
 
 ### SEE ALSO
 
-* [daytona](daytona.md)	 - Daytona is a Dev Environment Manager
+* [daytona](daytona.md)	 - Use the Daytona CLI to manage your workspace
 

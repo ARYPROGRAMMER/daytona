@@ -1,15 +1,9 @@
 ## daytona forward
 
-Forward a port from a project to your local machine
+Forward a port publicly via an URL
 
 ```
-daytona forward [PORT] [WORKSPACE] [PROJECT] [flags]
-```
-
-### Options
-
-```
-      --public   Should be port be available publicly via an URL
+daytona forward [PORT] [flags]
 ```
 
 ### Options inherited from parent commands
@@ -20,5 +14,5 @@ daytona forward [PORT] [WORKSPACE] [PROJECT] [flags]
 
 ### SEE ALSO
 
-* [daytona](daytona.md)	 - Daytona is a Dev Environment Manager
+* [daytona](daytona.md)	 - Use the Daytona CLI to manage your workspace
 

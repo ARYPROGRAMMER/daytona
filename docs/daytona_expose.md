@@ -1,9 +1,9 @@
-## daytona version
+## daytona expose
 
-Print the version number
+Expose a local port over stdout - Used by the Daytona CLI to make direct connections to the project
 
 ```
-daytona version [flags]
+daytona expose [PORT] [flags]
 ```
 
 ### Options inherited from parent commands

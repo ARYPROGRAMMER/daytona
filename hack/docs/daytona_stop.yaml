@@ -1,17 +1,9 @@
 name: daytona stop
-synopsis: Stop a workspace
-usage: daytona stop [WORKSPACE] [flags]
-options:
-    - name: all
-      shorthand: a
-      default_value: "false"
-      usage: Stop all workspaces
-    - name: project
-      shorthand: p
-      usage: Stop a single project in the workspace (project name)
+synopsis: Stop the project
+usage: daytona stop [flags]
 inherited_options:
     - name: help
       default_value: "false"
       usage: help for daytona
 see_also:
-    - daytona - Daytona is a Dev Environment Manager
+    - daytona - Use the Daytona CLI to manage your workspace

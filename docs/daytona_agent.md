@@ -1,16 +1,15 @@
-## daytona list
+## daytona agent
 
-List workspaces
+Start the agent process
 
 ```
-daytona list [flags]
+daytona agent [flags]
 ```
 
 ### Options
 
 ```
-  -f, --format string   Output format. Must be one of (yaml, json)
-  -v, --verbose         Show verbose output
+      --host   Run the agent in host mode
 ```
 
 ### Options inherited from parent commands
@@ -22,4 +21,5 @@ daytona list [flags]
 ### SEE ALSO
 
 * [daytona](daytona.md)	 - Use the Daytona CLI to manage your workspace
+* [daytona agent logs](daytona_agent_logs.md)	 - Output Daytona Agent logs
 

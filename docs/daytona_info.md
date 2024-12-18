@@ -1,9 +1,9 @@
 ## daytona info
 
-Show workspace info
+Show project info
 
 ```
-daytona info [WORKSPACE] [flags]
+daytona info [flags]
 ```
 
 ### Options
@@ -20,5 +20,5 @@ daytona info [WORKSPACE] [flags]
 
 ### SEE ALSO
 
-* [daytona](daytona.md)	 - Daytona is a Dev Environment Manager
+* [daytona](daytona.md)	 - Use the Daytona CLI to manage your workspace
 

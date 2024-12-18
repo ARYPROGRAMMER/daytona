@@ -21,5 +21,5 @@ daytona logs [WORKSPACE] [PROJECT_NAME] [flags]
 
 ### SEE ALSO
 
-* [daytona](daytona.md)	 - Daytona is a Dev Environment Manager
+* [daytona](daytona.md)	 - Use the Daytona CLI to manage your workspace
 

@@ -1,6 +1,6 @@
 name: daytona info
-synopsis: Show workspace info
-usage: daytona info [WORKSPACE] [flags]
+synopsis: Show project info
+usage: daytona info [flags]
 options:
     - name: format
       shorthand: f
@@ -10,4 +10,4 @@ inherited_options:
       default_value: "false"
       usage: help for daytona
 see_also:
-    - daytona - Daytona is a Dev Environment Manager
+    - daytona - Use the Daytona CLI to manage your workspace
