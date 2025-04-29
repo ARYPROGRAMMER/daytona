@@ -29,6 +29,7 @@ import { ImageNodeState } from '../enums/image-node-state.enum'
 import { BuildInfo } from '../entities/build-info.entity'
 import { CreateSandboxDTO } from '@daytonaio/runner-api-client'
 import { fromAxiosError } from '../../common/utils/from-axios-error'
+import { TypedConfigService } from '../../config/typed-config.service'
 
 type BreakFromSwitch = boolean
 const SYNC_INSTANCE_STATE_LOCK_KEY = 'sync-instance-state-'
@@ -48,11 +49,25 @@ export class WorkspaceStateService {
     private readonly redisLockProvider: RedisLockProvider,
     private readonly dockerProvider: DockerProvider,
     private readonly organizationService: OrganizationService,
+    private readonly configService: TypedConfigService,
   ) {}
 
   //  on init
   async onApplicationBootstrap() {
-    await this.adHocSnapshotCheck()
+    // Skip initialization in development mode with SKIP_CONNECTIONS enabled
+    const isDev = this.configService.get('environment') === 'dev'
+    const skipConnections = this.configService.get('skipConnections') === true
+
+    if (isDev && skipConnections) {
+      this.logger.log('Development mode with SKIP_CONNECTIONS enabled - skipping workspace state initialization')
+      return
+    }
+
+    try {
+      await this.adHocSnapshotCheck()
+    } catch (error) {
+      this.logger.error('Failed to initialize workspace state service', error)
+    }
   }
 
   //  todo: make frequency configurable or more efficient

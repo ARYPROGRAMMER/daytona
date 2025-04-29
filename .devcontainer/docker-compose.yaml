@@ -22,6 +22,8 @@ services:
       - POSTGRES_PASSWORD=pass
       - POSTGRES_USER=user
       - POSTGRES_DB=application_ctx
+    ports:
+      - "5432:5432"
 
   pgadmin:
     image: dpage/pgadmin4:9.2.0
@@ -37,9 +39,13 @@ services:
       - ./pgadmin4/pgpass:/pgpass
     depends_on:
       - db
+    ports:
+      - "8080:80"
 
   redis:
     image: redis:latest
+    ports:
+      - "6379:6379"
 
   registry-ui:
     image: joxit/docker-registry-ui:main
@@ -57,6 +63,8 @@ services:
       - REGISTRY_SECURED=false
       - CATALOG_ELEMENTS_LIMIT=1000
     container_name: registry-ui
+    ports:
+      - "8081:80"
 
   registry:
     image: registry:2.8.2
@@ -71,9 +79,14 @@ services:
     volumes:
       - registry:/var/lib/registry
     container_name: registry
+    ports:
+      - "5000:5000"
 
   maildev:
     image: maildev/maildev
+    ports:
+      - "1025:1025"
+      - "1080:1080"
 
   minio:
     image: minio/minio:latest
@@ -85,6 +98,9 @@ services:
       - minio_data:/data
     command: server /data --console-address ":9001"
     container_name: minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
 
 volumes:
   registry: {}

@@ -5,7 +5,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useApi } from '@/hooks/useApi'
-import { Plus } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import { ImageDto, ImageState, OrganizationRolePermissionsEnum } from '@daytonaio/api-client'
 import { ImageTable } from '@/components/ImageTable'
 import {
@@ -39,6 +39,9 @@ const Images: React.FC = () => {
   const [newEntrypoint, setNewEntrypoint] = useState('')
   const [loadingCreate, setLoadingCreate] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [selectedImages, setSelectedImages] = useState<Record<string, boolean>>({})
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false)
+  const [bulkDeletingInProgress, setBulkDeletingInProgress] = useState(false)
 
   const { selectedOrganization, authenticatedUserHasPermission } = useSelectedOrganization()
 
@@ -81,6 +84,12 @@ const Images: React.FC = () => {
 
     const handleImageRemovedEvent = (imageId: string) => {
       setImages((prev) => prev.filter((i) => i.id !== imageId))
+      // Also remove from selection if it was selected
+      setSelectedImages((prev) => {
+        const newSelection = { ...prev }
+        delete newSelection[imageId]
+        return newSelection
+      })
     }
 
     notificationSocket.on('image.created', handleImageCreatedEvent)
@@ -169,16 +178,95 @@ const Images: React.FC = () => {
     }
   }
 
+  const handleSelectImage = (imageId: string, selected: boolean) => {
+    setSelectedImages((prev) => ({
+      ...prev,
+      [imageId]: selected,
+    }))
+  }
+
+  const handleSelectAll = (selected: boolean) => {
+    const newSelectedImages: Record<string, boolean> = {}
+
+    if (selected) {
+      // Only select images that are not in REMOVING state
+      images.forEach((image) => {
+        if (image.state !== ImageState.REMOVING) {
+          newSelectedImages[image.id] = true
+        }
+      })
+    }
+
+    setSelectedImages(newSelectedImages)
+  }
+
+  const handleBulkDelete = async () => {
+    const selectedImageIds = Object.keys(selectedImages).filter((id) => selectedImages[id])
+    if (selectedImageIds.length === 0) {
+      return
+    }
+
+    setBulkDeletingInProgress(true)
+
+    try {
+      // Mark all selected images as loading
+      const newLoadingImages = { ...loadingImages }
+      selectedImageIds.forEach((id) => {
+        newLoadingImages[id] = true
+      })
+      setLoadingImages(newLoadingImages)
+
+      // Get the image names for the toast
+      const selectedImageNames = images
+        .filter((image) => selectedImages[image.id])
+        .map((image) => image.name)
+        .join(', ')
+
+      // Delete images one by one
+      for (const id of selectedImageIds) {
+        await imageApi.removeImage(id, selectedOrganization?.id)
+      }
+
+      // Reset selection
+      setSelectedImages({})
+      setShowBulkDeleteDialog(false)
+
+      const count = selectedImageIds.length
+      toast.success(`Deleting ${count} image${count !== 1 ? 's' : ''}: ${selectedImageNames}`)
+    } catch (error) {
+      handleApiError(error, 'Failed to delete some images')
+    } finally {
+      setBulkDeletingInProgress(false)
+
+      // Clear loading state for all images
+      const newLoadingImages = { ...loadingImages }
+      selectedImageIds.forEach((id) => {
+        newLoadingImages[id] = false
+      })
+      setLoadingImages(newLoadingImages)
+    }
+  }
+
   const writePermitted = useMemo(
     () => authenticatedUserHasPermission(OrganizationRolePermissionsEnum.WRITE_IMAGES),
     [authenticatedUserHasPermission],
+  )
+
+  const deletePermitted = useMemo(
+    () => authenticatedUserHasPermission(OrganizationRolePermissionsEnum.DELETE_IMAGES),
+    [authenticatedUserHasPermission],
+  )
+
+  const selectedCount = useMemo(
+    () => Object.keys(selectedImages).filter((id) => selectedImages[id]).length,
+    [selectedImages],
   )
 
   return (
     <div className="p-6">
       <Dialog
         open={showCreateDialog}
-        onOpenChange={(isOpen) => {
+        onOpenChange={(isOpen: boolean) => {
           setShowCreateDialog(isOpen)
           if (isOpen) {
             return
@@ -189,20 +277,33 @@ const Images: React.FC = () => {
       >
         <div className="mb-6 flex justify-between items-center">
           <h1 className="text-2xl font-bold">Images</h1>
-          {writePermitted && (
-            <DialogTrigger asChild>
+          <div className="flex gap-3">
+            {deletePermitted && selectedCount > 0 && (
               <Button
-                variant="default"
-                size="icon"
+                variant="destructive"
+                onClick={() => setShowBulkDeleteDialog(true)}
                 disabled={loadingTable}
                 className="w-auto px-4"
-                title="Create Image"
               >
-                <Plus className="w-4 h-4" />
-                Create Image
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Selected ({selectedCount})
               </Button>
-            </DialogTrigger>
-          )}
+            )}
+            {writePermitted && (
+              <DialogTrigger asChild>
+                <Button
+                  variant="default"
+                  size="icon"
+                  disabled={loadingTable}
+                  className="w-auto px-4"
+                  title="Create Image"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create Image
+                </Button>
+              </DialogTrigger>
+            )}
+          </div>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create New Image</DialogTitle>
@@ -277,13 +378,16 @@ const Images: React.FC = () => {
             setShowDeleteDialog(true)
           }}
           onToggleEnabled={handleToggleEnabled}
+          selectedImages={selectedImages}
+          onSelectImage={handleSelectImage}
+          onSelectAll={handleSelectAll}
         />
       </Dialog>
 
       {imageToDelete && (
         <Dialog
           open={showDeleteDialog}
-          onOpenChange={(isOpen) => {
+          onOpenChange={(isOpen: boolean) => {
             setShowDeleteDialog(isOpen)
             if (!isOpen) {
               setImageToDelete(null)
@@ -314,6 +418,33 @@ const Images: React.FC = () => {
           </DialogContent>
         </Dialog>
       )}
+
+      <Dialog
+        open={showBulkDeleteDialog}
+        onOpenChange={(isOpen: boolean) => {
+          setShowBulkDeleteDialog(isOpen)
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Bulk Image Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete {selectedCount} selected image{selectedCount !== 1 ? 's' : ''}? This
+              action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="secondary" disabled={bulkDeletingInProgress}>
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button variant="destructive" onClick={handleBulkDelete} disabled={bulkDeletingInProgress}>
+              {bulkDeletingInProgress ? `Deleting ${selectedCount} images...` : `Delete ${selectedCount} images`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

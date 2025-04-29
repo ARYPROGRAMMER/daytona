@@ -27,6 +27,7 @@ import {
 import { Pagination } from './Pagination'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip'
 import { useSelectedOrganization } from '@/hooks/useSelectedOrganization'
+import { Checkbox } from './ui/checkbox'
 
 interface DataTableProps {
   data: ImageDto[]
@@ -34,9 +35,21 @@ interface DataTableProps {
   loadingImages: Record<string, boolean>
   onDelete: (image: ImageDto) => void
   onToggleEnabled: (image: ImageDto, enabled: boolean) => void
+  selectedImages: Record<string, boolean>
+  onSelectImage: (imageId: string, selected: boolean) => void
+  onSelectAll: (selected: boolean) => void
 }
 
-export function ImageTable({ data, loading, loadingImages, onDelete, onToggleEnabled }: DataTableProps) {
+export function ImageTable({
+  data,
+  loading,
+  loadingImages,
+  onDelete,
+  onToggleEnabled,
+  selectedImages,
+  onSelectImage,
+  onSelectAll,
+}: DataTableProps) {
   const { authenticatedUserHasPermission } = useSelectedOrganization()
 
   const writePermitted = useMemo(
@@ -51,9 +64,19 @@ export function ImageTable({ data, loading, loadingImages, onDelete, onToggleEna
 
   const [sorting, setSorting] = useState<SortingState>([])
   const columns = useMemo(
-    () => getColumns({ onDelete, onToggleEnabled, loadingImages, writePermitted, deletePermitted }),
-    [onDelete, onToggleEnabled, loadingImages, writePermitted, deletePermitted],
+    () =>
+      getColumns({
+        onDelete,
+        onToggleEnabled,
+        loadingImages,
+        writePermitted,
+        deletePermitted,
+        selectedImages,
+        onSelectImage,
+      }),
+    [onDelete, onToggleEnabled, loadingImages, writePermitted, deletePermitted, selectedImages, onSelectImage],
   )
+
   const table = useReactTable({
     data,
     columns,
@@ -69,6 +92,13 @@ export function ImageTable({ data, loading, loadingImages, onDelete, onToggleEna
     getRowId: (row) => row.id,
   })
 
+  // Calculate if all visible rows are selected
+  const allRowsSelected =
+    table.getRowModel().rows.length > 0 &&
+    table
+      .getRowModel()
+      .rows.every((row) => selectedImages[row.original.id] && row.original.state !== ImageState.REMOVING)
+
   return (
     <div>
       <div className="rounded-md border">
@@ -76,6 +106,16 @@ export function ImageTable({ data, loading, loadingImages, onDelete, onToggleEna
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
+                {deletePermitted && (
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={allRowsSelected}
+                      onCheckedChange={(checked: boolean | 'indeterminate') => onSelectAll(!!checked)}
+                      aria-label="Select all"
+                      disabled={loading || table.getRowModel().rows.length === 0}
+                    />
+                  </TableHead>
+                )}
                 {headerGroup.headers.map((header) => {
                   return (
                     <TableHead key={header.id}>
@@ -89,7 +129,7 @@ export function ImageTable({ data, loading, loadingImages, onDelete, onToggleEna
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
+                <TableCell colSpan={deletePermitted ? columns.length + 1 : columns.length} className="h-24 text-center">
                   Loading...
                 </TableCell>
               </TableRow>
@@ -100,6 +140,18 @@ export function ImageTable({ data, loading, loadingImages, onDelete, onToggleEna
                   data-state={row.getIsSelected() && 'selected'}
                   className={`${loadingImages[row.original.id] || row.original.state === ImageState.REMOVING ? 'opacity-50 pointer-events-none' : ''}`}
                 >
+                  {deletePermitted && (
+                    <TableCell className="w-12">
+                      <Checkbox
+                        checked={selectedImages[row.original.id] || false}
+                        onCheckedChange={(checked: boolean | 'indeterminate') =>
+                          onSelectImage(row.original.id, !!checked)
+                        }
+                        aria-label={`Select ${row.original.name}`}
+                        disabled={loadingImages[row.original.id] || row.original.state === ImageState.REMOVING}
+                      />
+                    </TableCell>
+                  )}
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
                   ))}
@@ -108,7 +160,10 @@ export function ImageTable({ data, loading, loadingImages, onDelete, onToggleEna
             ) : (
               !loading && (
                 <TableRow>
-                  <TableCell colSpan={columns.length} className="h-24 text-center">
+                  <TableCell
+                    colSpan={deletePermitted ? columns.length + 1 : columns.length}
+                    className="h-24 text-center"
+                  >
                     No results.
                   </TableCell>
                 </TableRow>
@@ -128,12 +183,16 @@ const getColumns = ({
   loadingImages,
   writePermitted,
   deletePermitted,
+  selectedImages,
+  onSelectImage,
 }: {
   onDelete: (image: ImageDto) => void
   onToggleEnabled: (image: ImageDto, enabled: boolean) => void
   loadingImages: Record<string, boolean>
   writePermitted: boolean
   deletePermitted: boolean
+  selectedImages: Record<string, boolean>
+  onSelectImage: (imageId: string, selected: boolean) => void
 }): ColumnDef<ImageDto>[] => {
   const columns: ColumnDef<ImageDto>[] = [
     {

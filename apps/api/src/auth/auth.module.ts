@@ -34,25 +34,57 @@ import { catchError, map } from 'rxjs/operators'
     {
       provide: JwtStrategy,
       useFactory: async (userService: UserService, httpService: HttpService, configService: TypedConfigService) => {
-        // Get the OpenID configuration from the issuer
-        const discoveryUrl = `${configService.get('oidc.issuer')}/.well-known/openid-configuration`
-        const metadata = await firstValueFrom(
-          httpService.get(discoveryUrl).pipe(
-            map((response) => response.data as OidcMetadata),
-            catchError((error) => {
-              throw new Error(`Failed to fetch OpenID configuration: ${error.message}`)
-            }),
-          ),
-        )
+        try {
+          // Check if we're in development mode and should bypass OIDC configuration
+          const skipConnections = configService.get('skipConnections') === true
+          const isDev = configService.get('environment') === 'dev'
 
-        return new JwtStrategy(
-          {
-            audience: configService.get('oidc.audience'),
-            issuer: metadata.issuer,
-            jwksUri: metadata.jwks_uri,
-          },
-          userService,
-        )
+          if (isDev && skipConnections) {
+            console.log('DEVELOPMENT MODE: Using mock OpenID configuration')
+            // Return JWT Strategy with mock configuration for development
+            return new JwtStrategy(
+              {
+                audience: configService.get('oidc.audience') || 'daytona',
+                issuer: 'http://localhost:5556/dex',
+                jwksUri: 'http://localhost:5556/dex/keys',
+              },
+              userService,
+            )
+          }
+
+          // Standard production flow - Get the OpenID configuration from the issuer
+          const discoveryUrl = `${configService.get('oidc.issuer')}/.well-known/openid-configuration`
+          const metadata = await firstValueFrom(
+            httpService.get(discoveryUrl).pipe(
+              map((response) => response.data as OidcMetadata),
+              catchError((error) => {
+                throw new Error(`Failed to fetch OpenID configuration: ${error.message}`)
+              }),
+            ),
+          )
+
+          return new JwtStrategy(
+            {
+              audience: configService.get('oidc.audience'),
+              issuer: metadata.issuer,
+              jwksUri: metadata.jwks_uri,
+            },
+            userService,
+          )
+        } catch (error) {
+          console.warn('Error in auth setup:', error.message)
+          console.warn('Continuing with default configuration...')
+
+          // Return JWT Strategy with fallback configuration
+          return new JwtStrategy(
+            {
+              audience: configService.get('oidc.audience') || 'daytona',
+              issuer: 'http://localhost:5556/dex',
+              jwksUri: 'http://localhost:5556/dex/keys',
+            },
+            userService,
+          )
+        }
       },
       inject: [UserService, HttpService, TypedConfigService],
     },

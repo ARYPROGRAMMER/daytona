@@ -76,25 +76,36 @@ async function bootstrap() {
   const documentFactory = () => SwaggerModule.createDocument(app, getOpenApiConfig(configService.get('oidc.issuer')))
   SwaggerModule.setup('api', app, documentFactory)
 
-  // Auto create nodes only in local development environment
-  if (!configService.get('production')) {
-    const nodeService = app.get(NodeService)
-    const nodes = await nodeService.findAll()
-    if (!nodes.find((node) => node.domain === 'localtest.me:3003')) {
-      await nodeService.create({
-        apiUrl: 'http://localhost:3003',
-        apiKey: 'secret_api_token',
-        cpu: 4,
-        memory: 8192,
-        disk: 50,
-        gpu: 0,
-        gpuType: 'none',
-        capacity: 100,
-        region: NodeRegion.US,
-        class: WorkspaceClass.SMALL,
-        domain: 'localtest.me:3003',
-      })
+  // Check if we're in development mode with SKIP_CONNECTIONS enabled
+  const isDev = configService.get('environment') === 'dev'
+  const skipConnections = configService.get('skipConnections') === true
+
+  // Auto create nodes only in local development environment and not in skip connections mode
+  if (!configService.get('production') && !(isDev && skipConnections)) {
+    try {
+      const nodeService = app.get(NodeService)
+      const nodes = await nodeService.findAll()
+      if (!nodes.find((node) => node.domain === 'localtest.me:3003')) {
+        await nodeService.create({
+          apiUrl: 'http://localhost:3003',
+          apiKey: 'secret_api_token',
+          cpu: 4,
+          memory: 8192,
+          disk: 50,
+          gpu: 0,
+          gpuType: 'none',
+          capacity: 100,
+          region: NodeRegion.US,
+          class: WorkspaceClass.SMALL,
+          domain: 'localtest.me:3003',
+        })
+      }
+    } catch (error) {
+      Logger.warn('Could not initialize default nodes. Continuing anyway...')
+      Logger.debug(error)
     }
+  } else {
+    Logger.log('Skipping node creation in development mode')
   }
 
   const host = '0.0.0.0'
